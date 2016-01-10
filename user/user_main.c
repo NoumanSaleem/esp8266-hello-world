@@ -1,10 +1,14 @@
 #include <osapi.h>
 #include <os_type.h>
 #include <user_interface.h>
+#include <espconn.h>
 #include "driver/uart.h"
 
+LOCAL struct espconn conn1;
 LOCAL void initDone();
+LOCAL void setupUDP();
 LOCAL void wifiEventHandler(System_Event_t *event);
+LOCAL void recvCB(void *arg, char *pData, unsigned short len);
 
 LOCAL void initDone() {
   os_printf("Initialized! \n");
@@ -18,10 +22,28 @@ LOCAL void initDone() {
   wifi_station_connect();
 }
 
+LOCAL void recvCB(void *arg, char *pData, unsigned short len) {
+  os_printf("Received data!\n");
+}
+
+LOCAL void setupUDP() {
+  esp_udp udp;
+  udp.local_port = 25867;
+
+  conn1.type = ESPCONN_UDP;
+  conn1.state = ESPCONN_NONE;
+  conn1.proto.udp = &udp;
+
+  espconn_create(&conn1);
+  espconn_regist_recvcb(&conn1, recvCB);
+  os_printf("Listening for data\n");
+}
+
 LOCAL void wifiEventHandler(System_Event_t *event) {
   switch (event->event) {
     case EVENT_STAMODE_GOT_IP:
       os_printf("IP: %d.%d.%d.%d\n", IP2STR(&event->event_info.got_ip.ip));
+      setupUDP();
     break;
     default:
       os_printf("WiFi Event: %d\n", event->event);
